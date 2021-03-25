@@ -15,40 +15,22 @@ from numba import float64, int64, boolean
 class ClockStructClass:
     '''
     Contains model information regarding dates and step times etc.
-
     Atributes:\n
-
     `TimeStepCounter` : `int`: Keeps track of current timestep
-
     `ModelTermination` : `Bool`: False unless model has finished
-
     `SimulationStartDate` : `np.Datetime64`: Date of simulation start
-
     `SimulationEndDate` : `np.Datetime64`: Date of simulation end
-
     `TimeStep` : `int`: time step (evaluation needed)
-
     `nSteps` : `int`: total number of days of simulation
-
     `TimeSpan` : `np.array`: all dates (np.Datetime64) that lie within the start and end dates of simulation
-
     `StepStartTime` : `np.Datetime64`: Date at start of timestep
-
     `StepEndTime` : `np.Datetime64`: Date at end of timestep
-
     `EvapTimeSteps` : `int`: Number of time-steps (per day) for soil evaporation calculation
-
     `SimOffSeason` : `str`: 'Y' if you want to simulate the off season, 'N' otherwise
-
     `PlantingDates` : `list-like`: list of planting dates in datetime format
-
     `HarvestDates` : `list-like`: list of harvest dates in datetime format
-
     `nSeasons` : `int`: Total number of seasons to be simulated
-
     `SeasonCounter` : `int`: counter to keep track of which season we are currenlty simulating
-
-
         '''
 
     def __init__(self):
@@ -73,17 +55,11 @@ class ClockStructClass:
 class OutputClass():
     '''
     Class to hold output data
-
     **Atributes**:\n
-
     `Water` : `pandas.DataFrame` : Water storage in soil
-
     `Flux` : `pandas.DataFrame` : Water flux
-
     `Growth` : `pandas.DataFrame` : crop growth
-
     `Final` : `pandas.DataFrame` : final stats
-
     '''
     def __init__(self):
 
@@ -99,46 +75,25 @@ class OutputClass():
 class ParamStructClass:
     '''
     The ParamStruct class contains the bulk of model Paramaters. In general these will not change over the course of the simulation
-
-
     **Attributes**:\n
-
     `Soil` : `SoilClass` : Soil object contains data and paramaters related to the soil
-
     `FallowFieldMngt` : `FieldMngtClass` : Object containing field management variables for the off season (fallow periods)
-
     `NCrops` : `int` : Number of crop types to be simulated
-
     `SpecifiedPlantCalander` : `str` :  Specified crop rotation calendar (Y or N)
-
     `CropChoices` : `list` : List of crop type names in each simulated season
-
     `CO2data` : `pd.Series` : CO2 data indexed by year
-
     `CO2` : `CO2Class` : object containing reference and current co2 concentration
-
     `WaterTable` : `int` : Water table present (1=yes, 0=no)
-
     `zGW` : `np.array` : WaterTable depth (mm) for each day of simulation
-
     `zGW_dates` : `np.array` : Corresponding dates to the zGW values
-
     `WTMethod` : `str` : 'Constant' or 'Variable'
-
     `CropList` : `list` : List of Crop Objects which contain paramaters for all the differnet crops used in simulations
-
     `python_crop_list` : `list` : List of Crop Objects, one for each season
-
     `python_fallow_crop` : `CropClass` : Crop object for off season
-
     `Seasonal_Crop_List` : `list` : List of CropStructs, one for each season (jit class objects)
-
     `crop_name_list` : `list` : List of crop names, one for each season
-
     `Fallow_Crop` : `CropStruct` : CropStruct object (jit class) for off season
-
     `Fallow_Crop_Name` : `str` : name of fallow crop
-
         '''
 
     def __init__(self):
@@ -178,20 +133,12 @@ class ParamStructClass:
 class SoilClass:
     '''
     The Soil Class contains Paramaters and variables of the soil used in the simulation
-
-
     **Attributes**:\n
-
     `profile` : `pandas.DataFrame` : holds soil profile information
-
     `Profile` : `SoilProfileClass` : jit class object holdsing soil profile information
-
     `Hydrology` : `pandas.DataFrame`: holds soil layer hydrology informaiton
-
     `Comp` : `pandas.DataFrame` : holds soil compartment information
-
     A number of float attributes specified in the initialisation of the class
-
         '''
     def __init__(self,soilType,dz=[0.1]*12,
                  AdjREW= 1,REW= 9.0,CalcCN=0,CN=61.0,zRes=-999,
@@ -225,47 +172,30 @@ class SoilClass:
         self.zGerm = zGerm # Thickness of soil surface (m) used to calculate water content for germination
         self.AdjCN = AdjCN # Adjust curve number for antecedent moisture content (0: No, 1: Yes)
         self.fshape_cr = fshape_cr # Capillary rise shape factor
-        self.zTop = zTop # Thickness of soil surface layer for water stress comparisons (m)
+        self.zTop = max(zTop,dz[0]) # Thickness of soil surface layer for water stress comparisons (m)
 
         if soilType == 'custom':
             self.create_df(dz)
+
 
         elif soilType == 'Clay':
             self.CN = 77
             self.CalcCN = 0
             self.REW = 14
-            dz = [0.1]*12
             self.create_df(dz)
             self.add_layer(sum(dz), 0.39, 0.54, 0.55, 35, 100)
 
         elif soilType == 'ClayLoam':
-            self.CN = 72 
+            self.CN = 72
             self.CalcCN = 0
             self.REW = 11
-            dz = [0.1]*12
             self.create_df(dz)
             self.add_layer(sum(dz), 0.23, 0.39, 0.5, 125, 100)
-            
-        elif soilType == 'ClayLoamGuarClovis2018': # Clovis data from 2018
-            self.CN = 72 
-            self.CalcCN = 0
-            self.REW = 12
-            dz = [0.2]*7 # Not sure what 12 is... number of layers would be 7 or 8 if it takes evap
-            self.create_df(dz)
-            self.add_layer(0.10, 0.20, 0.33, 0.35, 80, 100) #self,thickness, thWP, thFC, thS, Ksat (mm/day), penetrability)
-            self.add_layer(0.20, 0.20, 0.33, 0.35, 80, 100)
-            self.add_layer(0.20, 0.20, 0.33, 0.36, 80, 100)
-            self.add_layer(0.20, 0.20, 0.32, 0.35, 80, 100)
-            self.add_layer(0.20, 0.20, 0.30, 0.33, 80, 100)
-            self.add_layer(0.20, 0.15, 0.26, 0.30, 80, 100)
-            self.add_layer(0.20, 0.15, 0.26, 0.30, 80, 100)
-            self.add_layer(0.20, 0.15, 0.26, 0.33, 80, 100)
-            
+
         elif soilType == 'Loam':
             self.CN = 61
             self.CalcCN = 0
             self.REW = 9
-            dz = [0.1]*12
             self.create_df(dz)
             self.add_layer(sum(dz), 0.15, 0.31, 0.46, 500, 100)
 
@@ -273,7 +203,6 @@ class SoilClass:
             self.CN = 46
             self.CalcCN = 0
             self.REW = 5
-            dz = [0.1]*12
             self.create_df(dz)
             self.add_layer(sum(dz), 0.08, 0.16, 0.38, 2200, 100)
 
@@ -281,7 +210,6 @@ class SoilClass:
             self.CN = 46
             self.CalcCN = 0
             self.REW = 4
-            dz = [0.1]*12
             self.create_df(dz)
             self.add_layer(sum(dz), 0.06, 0.13, 0.36, 3000, 100)
 
@@ -289,7 +217,6 @@ class SoilClass:
             self.CN = 77
             self.CalcCN = 0
             self.REW = 10
-            dz = [0.1]*12
             self.create_df(dz)
             self.add_layer(sum(dz), 0.27, 0.39, 0.5, 35, 100)
 
@@ -297,7 +224,6 @@ class SoilClass:
             self.CN = 72
             self.CalcCN = 0
             self.REW = 9
-            dz = [0.1]*12
             self.create_df(dz)
             self.add_layer(sum(dz), 0.20, 0.32, 0.47, 225, 100)
 
@@ -305,7 +231,6 @@ class SoilClass:
             self.CN = 46
             self.CalcCN = 0
             self.REW = 7
-            dz = [0.1]*12
             self.create_df(dz)
             self.add_layer(sum(dz), 0.10, 0.22, 0.41, 1200, 100)
 
@@ -313,7 +238,6 @@ class SoilClass:
             self.CN = 61
             self.CalcCN = 0
             self.REW = 11
-            dz = [0.1]*12
             self.create_df(dz)
             self.add_layer(sum(dz), 0.09, 0.33, 0.43, 500, 100)
 
@@ -321,7 +245,6 @@ class SoilClass:
             self.CN = 72
             self.CalcCN = 0
             self.REW = 13
-            dz = [0.1]*12
             self.create_df(dz)
             self.add_layer(sum(dz), 0.23, 0.44, 0.52, 150, 100)
 
@@ -329,7 +252,6 @@ class SoilClass:
             self.CN = 61
             self.CalcCN = 0
             self.REW = 11
-            dz = [0.1]*12
             self.create_df(dz)
             self.add_layer(sum(dz), 0.13, 0.33, 0.46, 575, 100)
 
@@ -337,7 +259,6 @@ class SoilClass:
             self.CN = 72
             self.CalcCN = 0
             self.REW = 14
-            dz = [0.1]*12
             self.create_df(dz)
             self.add_layer(sum(dz), 0.32, 0.50, 0.54, 100, 100)
 
@@ -345,8 +266,6 @@ class SoilClass:
             self.CN = 77
             self.CalcCN = 0
             self.REW = 10
-            dz = [0.1]*12
-            #dz = [0.1]*5 + [0.2]*6 + [0.3]
             self.create_df(dz)
             self.add_layer(0.5, 0.32, 0.50, 0.54, 15, 100)
             self.add_layer(1.5, 0.39, 0.54, 0.55, 2, 100)
@@ -359,6 +278,37 @@ class SoilClass:
             self.create_df(dz)
             self.add_layer(0.3, 0.24, 0.40, 0.50, 155, 100)
             self.add_layer(1.7, 0.11, 0.33, 0.46, 500, 100)
+            
+        elif soilType == 'ClayLoamGuar2018':
+            self.CN = 72 # Lower value - higher yield because more rainwater goes into the soil with a lower number
+            self.CalcCN = 0
+            self.REW = 5
+            dz = [0.1]*12
+            self.create_df(dz)
+            self.add_layer(sum(dz), 0.19, 0.31, 0.33, 111.25, 100)  #Estimations based on the clay loam given in the program
+
+        elif soilType == 'ClayLoamGuarClovis2018': # Clovis data from 2018
+            self.CN = 72 
+            self.CalcCN = 0
+            self.REW = 5 
+            dz = [0.1]*8 + [0.2]*4 # thickness of each soil compartment e.g. 12 compartments of thickness 0.1m -> want 0.2 * 7 
+            # The total thickness our layers have is 0.2m*7 = 1.4m. Inclusing the evaporation layer you have 1.6m
+            self.create_df(dz)
+            
+            #self.add_layer(sum(dz), 0.15, 0.33, 0.35, 100, 100) # All 12 layers are the same
+            # The problem is in the soil layers
+            
+            #self,thickness, thWP, thFC, thS, Ksat (mm/day), penetrability)
+            #specifying soil hydraulic properties
+            # Had to make first 4 layers repeated at 0.1m, last 4 layers are only taken once at 0.2m 
+            self.add_layer(0.20, 0.15, 0.33, 0.35, 100, 100) # Evaporation layer
+            self.add_layer(0.20, 0.20, 0.33, 0.35, 100, 100)
+            self.add_layer(0.20, 0.20, 0.33, 0.37, 100, 100)
+            self.add_layer(0.20, 0.20, 0.32, 0.35, 100, 100)
+            self.add_layer(0.20, 0.20, 0.30, 0.33, 100, 100)
+            self.add_layer(0.20, 0.20, 0.30, 0.30, 100, 100)
+            self.add_layer(0.20, 0.20, 0.30, 0.30, 130, 100)
+            self.add_layer(0.20, 0.20, 0.30, 0.32, 130, 100)
 
 
         else:
@@ -376,7 +326,7 @@ class SoilClass:
 
         self.profile = pd.DataFrame(np.empty((len(dz),4)),columns=["Comp","Layer","dz","dzsum"])
         self.profile.dz = dz
-        self.profile.dzsum = np.cumsum(self.profile.dz)
+        self.profile.dzsum = np.cumsum(self.profile.dz).round(2)
         self.profile.Comp = np.arange(len(dz))
         self.profile.Layer = np.nan
 
@@ -389,8 +339,6 @@ class SoilClass:
         """
         Function to calculate soil hydraulic properties, given textural inputs.
         Calculations use pedotransfer function equations described in Saxton and Rawls (2006)
-
-
         """
 
 
@@ -500,12 +448,13 @@ class SoilClass:
 
         self.profile.dz = self.profile.dz.round(2)
 
-        self.profile.dzsum = self.profile.dz.cumsum()
+        self.profile.dzsum = self.profile.dz.cumsum().round(2)
 
         self.zSoil = round(self.profile.dz.sum(),2)
 
         self.nComp = len(self.profile)
 
+        self.profile.Layer = self.profile.Layer.astype(int)
 
     def add_capillary_rise_params(self,):
         # Calculate capillary rise parameters for all soil layers
@@ -604,39 +553,23 @@ class SoilClass:
 class CropClass:
     '''
     The Crop Class contains Paramaters and variables of the crop used in the simulation
-
-
     **Attributes**:\n
-
     `c_name`: `str`: crop name ('custom' or one of built in defaults e.g. 'Maize')
-
     `PlantingDate` : `str` : Planting Date (mm/dd)
-
     `HarvestDate` : `str` : Latest Harvest Date (mm/dd)
-
     `CropType` : `int` : Crop Type (1 = Leafy vegetable, 2 = Root/tuber, 3 = Fruit/grain)
-
     `PlantMethod` : `int` : Planting method (0 = Transplanted, 1 =  Sown)
-
     `CalendarType` : `int` : Calendar Type (1 = Calendar days, 2 = Growing degree days)
-
     `SwitchGDD` : `int` : Convert calendar to GDD mode if inputs are given in calendar days (0 = No; 1 = Yes)
-
-
-
     `IrrMngt`: `dict` :  dictionary containting irrigation management information
-
     `IrrSchd` : `pandas.DataFrame` :  pandas DataFrame containing the Irrigation Schedule if predefined
-
     `FieldMngt` : `dict` :   Dictionary containing field management variables for the growing season of the crop
-
      A number of default program properties of type float are also specified during initialisation
-
     '''
 
 
 
-    def __init__(self,c_name,PlantingDate,HarvestDate,**kwargs):
+    def __init__(self,c_name,PlantingDate,HarvestDate=None,**kwargs):
 
         self.Name = ''
 
@@ -657,100 +590,50 @@ class CropClass:
         self.bsted = 0.000138 # WP co2 adjustment parameter given by Steduto et al. 2007
         self.bface = 0.001165 # WP co2 adjustment parameter given by FACE experiments
 
-        if c_name == 'Guar2018':
+        if c_name == 'GuarGDD': 
 
-            self.Name = 'Guar2018'
-
-            # added in Read_Model_Paramaters
-            self.CropType= 3 # Crop Type (1 = Leafy vegetable, 2 = Root/tuber, 3 = Fruit/grain)
-            self.PlantMethod= 1 # Planting method (0 = Transplanted, 1 =  Sown)
-            self.CalendarType= 2 # Calendar Type (1 = Calendar days, 2 = Growing degree days)
-
-            self.SwitchGDD= 0 # Convert calendar to GDD mode if inputs are given in calendar days (0 = No; 1 = Yes)
-
+            self.Name = 'GuarGDD'
+            self.CropType= 3; self.PlantMethod= 1; self.CalendarType= 2
+            self.SwitchGDD= 0;
             self.PlantingDate= PlantingDate # Planting Date (mm/dd)
             self.HarvestDate= HarvestDate # Latest Harvest Date (mm/dd)
 
-# 2018 only, pre-irrigation and full treatment
-            self.Emergence = 80 # Growing degree/Calendar days from sowing to emergence/transplant recovery -> 10 to 15 days
-            self.MaxRooting = 55 # Growing degree/Calendar days from sowing to maximum rooting -> end of development stage
-            self.Senescence = 90 # Growing degree/Calendar days from sowing to senescence
-            self.Maturity = 115 # Growing degree/Calendar days from sowing to maturity
-# Check if percentage or decimal
-            self.HIstart = 0.23 # Growing degree/Calendar days from sowing to start of yield formation
-            
-            self.Flowering = 49 # Duration of flowering in growing degree/calendar days (-999 for non-fruit/grain crops)
-            self.YldForm = 85 # Duration of yield formation in growing degree/calendar days
+            self.Emergence = 78.93; self.MaxRooting = 644.40; self.Senescence = 798.27;  self.Maturity = 814.05;
+            self.HIstart = 330.355; self.Flowering = 540; self.YldForm = 648; self.GDDmethod = 1; 
+            self.Tbase = 14.2; self.Tupp = 48.2; self.PolHeatStress = 0; self.Tmax_up = 37; self.Tmax_lo = 50; 
+            self.PolColdStress = 0; self.Tmin_up = 15; self.Tmin_lo = 5; self.TrColdStress = 1;
         
-            self.GDDmethod = 1 # Growing degree day calculation method -> What does this mean?
+            self.GDD_up = 12;
+            self.GDD_lo = 0; self.Zmin = 0.3; self.Zmax = 1.5;
+            self.fshape_r = 1.5; 
+            self.SxTopQ = 0.0480; 
+            self.SxBotQ = 0.012;
             
-            self.Tbase = 10 # Base temperature (degC) below which growth does not progress
-            self.Tupp = 50 # Upper temperature (degC) above which crop development no longer increases
-            self.PolHeatStress = 1 # Pollination affected by heat stress (0 = No, 1 = Yes)
+            self.SeedSize = 4.32; self.PlantPop = 240_000 # Hadiqa
             
-    # Look up somewhere
-            self.Tmax_up = 40 # Maximum air temperature (degC) above which pollination begins to fail
-            self.Tmax_lo = 45 # Maximum air temperature (degC) at which pollination completely fails
-            self.PolColdStress = 1 # Pollination affected by cold stress (0 = No, 1 = Yes)
-            self.Tmin_up = 10 # Minimum air temperature (degC) below which pollination begins to fail
-            self.Tmin_lo = 5 # Minimum air temperature (degC) at which pollination completely fails
+            self.CCx = 0.96;
+            self.CDC = 0.004; 
+            self.CGC = 0.005; 
+            self.Kcb = 1.15;
+            self.fage = 0.1; 
+            self.WP = 15; 
+            self.WPy = 100;
+            self.fsink = 0.3;
             
+            self.HI0 = 0.29; 
             
-            self.TrColdStress = 1 # Transpiration affected by cold temperature stress (0 = No, 1 = Yes)
-# Check later 
-            self.GDD_up = 12 # Minimum growing degree days (degC/day) required for full crop transpiration potential
-            self.GDD_lo = 0 # Growing degree days (degC/day) at which no crop transpiration occurs
-        
-            self.Zmin = 0.15 # Minimum effective rooting depth (m)
-            self.Zmax = 0.82 # Maximum rooting depth (m)
-# Look into this more -> Look this up 
-            self.fshape_r = 1.3 # Shape factor describing root expansion
-# Look them up in Winds
-            self.SxTopQ = 0.0480 # Maximum root water extraction at top of the root zone (m3/m3/day)
-            self.SxBotQ = 0.0117 # Maximum root water extraction at the bottom of the root zone (m3/m3/day)
-# Estimate this based on seed size
-            self.SeedSize = 6.5 # Soil surface area (cm2) covered by an individual seedling at 90% emergence
+            self.dHI_pre = 5;
+            self.a_HI = 4; self.b_HI = 10; 
+            self.dHI0 = 15;
             
-            self.PlantPop = 240000 # Number of plants per hectare
-            self.CCx = 0.90 # Maximum canopy cover (fraction of soil cover)
-# Estimate / look up -> Slow decline, use a small fraction 
-            self.CDC = 0.01 # Canopy decline coefficient (fraction per GDD/calendar day)
-            self.CGC = 0.0125 # Canopy growth coefficient (fraction per GDD)
-            
-            self.Kcb = 1.00 # Crop coefficient when canopy growth is complete but prior to senescence
-# Only 20 days, estimate 10 or 15%
-            self.fage = 0.1 #  Decline of crop coefficient due to ageing (%/day)
-            
-            self.WP = 17 # Water productivity normalized for ET0 and C02 (g/m2)
-# Estimate 100% 
-            self.WPy = 100 # Adjustment of water productivity in yield formation stage (% of WP)
-            
-            self.fsink = 0.69 # Crop performance under elevated atmospheric CO2 concentration (%/100)
-            self.HI0 = 0.30 # Reference harvest index
-            self.dHI_pre = 0 # Possible increase of harvest index due to water stress before flowering (%)
-# Look into this 
-            self.a_HI = 7 # Coefficient describing positive impact on harvest index of restricted vegetative growth during yield formation
-            self.b_HI = 3 # Coefficient describing negative impact on harvest index of stomatal closure during yield formation
-            self.dHI0 = 15 # Maximum allowable increase of harvest index above reference value
-            
-            self.Determinant = 1 # Crop Determinancy (0 = Indeterminant, 1 = Determinant)
-            self.exc = 50 # Excess of potential fruits
-# No water stress -> full irrigation, look into what these mean. See if there is a way to make it a compacted set and not a complex one
-            self.p_up1 = 0.14 # Upper soil water depletion threshold for water stress effects on affect canopy expansion
-            self.p_up2 = 0.69 # Upper soil water depletion threshold for water stress effects on canopy stomatal control
-            self.p_up3 = 0.69 # Upper soil water depletion threshold for water stress effects on canopy senescence
-            self.p_up4 = 0.8 # Upper soil water depletion threshold for water stress effects on canopy pollination
-            self.p_lo1 = 0.72 # Lower soil water depletion threshold for water stress effects on canopy expansion
-            self.p_lo2 = 1 # Lower soil water depletion threshold for water stress effects on canopy stomatal control
-            self.p_lo3 = 1 #  Lower soil water depletion threshold for water stress effects on canopy senescence
-            self.p_lo4 = 1 # Lower soil water depletion threshold for water stress effects on canopy pollination
-            self.fshape_w1 = 2.9 # Shape factor describing water stress effects on canopy expansion
-            self.fshape_w2 = 6 # Shape factor describing water stress effects on stomatal control
-            self.fshape_w3 = 2.7 # Shape factor describing water stress effects on canopy senescence
-            self.fshape_w4 = 1 # Shape factor describing water stress effects on pollination
+            self.Determinant = 0; self.exc = 0; self.p_up1 = 0.35; self.p_up2 = 0.70; self.p_up3 = 0.8; self.p_up4 = 0.95;
+            self.p_lo1 = 0.7; self.p_lo2 = 1; self.p_lo3 = 1; self.p_lo4 = 1; 
 
-# Have to change this to ELIF so the first if statement works
-
+            self.fshape_w1 = 2.9;
+            self.fshape_w2 = 6;
+            self.fshape_w3 = 2.7;
+            self.fshape_w4 = 1;
+            
         elif c_name == 'Maize':
 
             self.Name = 'Maize'
@@ -940,6 +823,8 @@ class CropClass:
 
         self.__dict__.update((k, v) for k, v in kwargs.items() if k in allowed_keys)
 
+        self.calculate_additional_params()
+
 
 
 
@@ -1000,31 +885,18 @@ class IrrMngtClass:
 
     """
     Farmer Class defines irrigation strategy
-
     **Attributes:**\n
-
-
     `Name` : `str` :  name
-
     `IrrMethod` : `int` :  Irrigation method {0: rainfed, 1: soil moisture targets, 2: set time interval,
                                               3: predifined schedule, 4: net irrigation, 5: constant depth }
-
     `WetSurf` : `int` : Soil surface wetted by irrigation (%)
-
     `AppEff` : `int` : Irrigation application efficiency (%)
-
     `MaxIrr` : `float` : Maximum depth (mm) that can be applied each day
-
     `SMT` : `list` :  Soil moisture targets (%TAW) to maintain in each growth stage (only used if irrigation method is equal to 1)
-
     `IrrInterval` : `int` : Irrigation interval in days (only used if irrigation method is equal to 2)
-
     `Schedule` : `pandas.DataFrame` : DataFrame containing dates and depths
-
     `NetIrrSMT` : `float` : Net irrigation threshold moisture level (% of TAW that will be maintained, for IrrMethod=4)
-
     `Depth` : `float` : constant depth to apply on each day
-
     """
 
     def __init__(self,IrrMethod,**kwargs):
@@ -1033,6 +905,7 @@ class IrrMngtClass:
         self.WetSurf = 100.
         self.AppEff = 100.
         self.MaxIrr = 25.
+        self.MaxIrrSeason = 10_000.
         self.SMT=np.zeros(4)
         self.IrrInterval = 0
         self.Schedule=[]
@@ -1065,7 +938,7 @@ class IrrMngtClass:
             self.depth = 0
 
 
-        allowed_keys = {'name','WetSurf','AppEff','MaxIrr','SMT','IrrInterval','NetIrrSMT','Schedule'}
+        allowed_keys = {'name','WetSurf','AppEff','MaxIrr','MaxIrrSeason','SMT','IrrInterval','NetIrrSMT','Schedule'}
 
         self.__dict__.update((k, v) for k, v in kwargs.items() if k in allowed_keys)
 
@@ -1076,6 +949,7 @@ spec = [
     ('WetSurf', float64),
     ('AppEff', float64),
     ('MaxIrr', float64),
+    ('MaxIrrSeason', float64),
     ('SMT', float64[:]),
     ('IrrInterval', int64),
     ('Schedule', float64[:]),
@@ -1086,8 +960,6 @@ spec = [
 class IrrMngtStruct:
 
     """
-
-
     """
 
     def __init__(self,sim_len):
@@ -1096,6 +968,7 @@ class IrrMngtStruct:
         self.WetSurf = 100.
         self.AppEff = 100.
         self.MaxIrr = 25.
+        self.MaxIrrSeason = 10_000
         self.SMT=np.zeros(4)
         self.IrrInterval = 0
         self.Schedule=np.zeros(sim_len)
@@ -1106,30 +979,16 @@ class IrrMngtStruct:
 class FieldMngtClass:
     '''
     Field Management Class
-
     **Attributes:**\n
-
-
     `Mulches` : `bool` :  Soil surface covered by mulches (Y or N)
-
     `Bunds` : `bool` :  Surface bunds present (Y or N)
-
     `CNadj` : `bool` : Field conditions affect curve number (Y or N)
-
     `SRinhb` : `bool` : Management practices fully inhibit surface runoff (Y or N)
-
-
-
     `MulchPct` : `float` :  Area of soil surface covered by mulches (%)
-
     `fMulch` : `float` : Soil evaporation adjustment factor due to effect of mulches
-
     `zBund` : `float` : Bund height (m)
-
     `BundWater` : `float` : Initial water height in surface bunds (mm)
-
     `CNadjPct` : `float` : Percentage change in curve number (positive or negative)
-
     '''
     def __init__(self,Mulches=False,Bunds=False,CNadj=False,SRinhb=False,
                  MulchPct=50,fMulch=0.5,zBund=0,BundWater=0,
@@ -1162,8 +1021,6 @@ spec = [
 class FieldMngtStruct:
 
     """
-
-
     """
 
     def __init__(self):
@@ -1184,18 +1041,11 @@ class FieldMngtStruct:
 class GwClass:
     '''
     Ground Water Class stores information on water table params
-
     **Attributes:**\n
-
-
     `WaterTable` : `str` :  Water table considered (Y or N)
-
     `Method` : `str` :  Water table input data ('Constant' or 'Variable')
-
     `dates` : `list` : water table observation dates
-
     `values` : `list` : water table observation depths
-
     '''
     def __init__(self,WaterTable='N',Method='Constant',dates=[],values=[]):
 
@@ -1208,17 +1058,11 @@ class GwClass:
 class InitWCClass:
     '''
     Initial water content Class defines water content at start of sim
-
     **Attributes:**\n
-
     `wc_type` : `str` :  Type of value ('Prop' = 'WP'/'FC'/'SAT'; 'Num' = XXX m3/m3; 'Pct' = % TAW))
-
     `Method` : `str` :  Method ('Depth' = Interpolate depth points; 'Layer' = Constant value for each soil layer)
-
     `depth_layer` : `list` : location in soil profile (soil layer or depth)
-
     `value` : `list` : value at that location
-
     '''
     def __init__(self,wc_type='Prop',Method='Layer',
                  depth_layer=[1],value=['FC']):
@@ -1332,12 +1176,7 @@ spec=[
 class CropStruct(object):
     '''
     The Crop Class contains Paramaters and variables of the crop used in the simulation
-
-
     **Attributes**:\n
-
-
-
     '''
 
 
@@ -1527,10 +1366,7 @@ spec=[
 class InitCondClass:
     '''
     The InitCond Class contains all Paramaters and variables used in the simulation
-
     updated each timestep with the name NewCond
-
-
     '''
 
     def __init__(self,num_comp):
@@ -1646,20 +1482,12 @@ spec = [
 class WevapClass(object):
     """
     stores soil water contents in the evaporation layer
-
     **Attributes:**\n
-
-
     `Sat` : `float` :  Water storage in evaporation layer at saturation (mm)
-
     `Fc` : `float` :  Water storage in evaporation layer at Field Capacity (mm)
-
     `Wp` : `float`:  Water storage in evaporation layer at Wilting Point (mm)
-
     `Dry` : `float` : Water storage in evaporation layer at air dry (mm)
-
     `Act` : `float` : Actual Water storage in evaporation layer (mm)
-
     """
 
     def __init__(self):
@@ -1694,27 +1522,14 @@ spec = [
 @jitclass(spec)
 class SoilProfileClass:
     """
-
     **Attributes:**\n
-
-
     `Comp` : `list` :
-
     `Layer` : `list` :
-
     `dz` : `list` :
-
     `dzsum` : `list` :
-
     `zBot` : `list` :
-
     `zTop` : `list` :
-
     `zMid` : `list` :
-
-
-
-
     """
     def __init__(self,length):
 
@@ -1746,16 +1561,8 @@ spec = [
 class TAWClass:
     """
     **Attributes:**\n
-
-
-
     `Rz` : `float` : .
-
     `Zt` : `float` : .
-
-
-
-
     """
     def __init__(self):
         self.Rz = 0.
@@ -1771,14 +1578,9 @@ spec = [
 class DrClass:
 
     """
-
     **Attributes:**\n
-
     `Rz` : `float` : .
-
     `Zt` : `float` : .
-
-
     """
 
     def __init__(self):
@@ -1799,25 +1601,13 @@ spec = [
 class thRZClass(object):
     """
     root zone water content
-
     **Attributes:**\n
-
-
-
     `Act` : `float` : .
-
     `S` : `float` : .
-
     `FC` : `float` : .
-
     `WP` : `float` : .
-
     `Dry` : `float` : .
-
     `Aer` : `float` : .
-
-
-
     """
     def __init__(self):
         self.Act = 0.
@@ -1841,22 +1631,12 @@ class KswClass(object):
 
     """
     water stress coefficients
-
     **Attributes:**\n
-
-
     `Exp` : `float` : .
-
     `Sto` : `float` : .
-
     `Sen` : `float` : .
-
     `Pol` : `float` : .
-
     `StoLin` : `float` : .
-
-
-
     """
 
 
@@ -1878,15 +1658,9 @@ class KstClass(object):
 
     """
     temperature stress coefficients
-
     **Attributes:**\n
-
-
     `PolH` : `float` : heat stress
-
     `PolC` : `float` : cold stress
-
-
     """
 
 
@@ -1904,14 +1678,9 @@ spec = [
 class CO2Class(object):
 
     """
-
     **Attributes:**\n
-
-
     `RefConc` : `float` : reference CO2 concentration
-
     `CurrentConc` : `float` : current CO2 concentration
-
     """
 
     def __init__(self):
