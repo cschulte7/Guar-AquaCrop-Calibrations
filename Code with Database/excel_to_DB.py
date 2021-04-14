@@ -8,7 +8,7 @@ db=create_engine('mysql://UofABEWINDS:WINDSAWSPort2020@windsdatabase-1.cdzagwevz
 connection = db.raw_connection()
 cursor = connection.cursor()
 
-myfile1="Aquacrop_crop_table1.csv"
+myfile1="Aquacrop_crop_table_Schulte.csv"
 
 df_file=pd.read_csv(myfile1,sep=",")
 
